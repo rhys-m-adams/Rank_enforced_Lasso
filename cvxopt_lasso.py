@@ -13,7 +13,10 @@ def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=
     summation[no_lasso] = 0
     abs_sum = np.hstack((-summation, summation[lasso_inds]))
     ranking = np.zeros((np.max([len(param_ranks)-1,0]), G_upper.shape[1]))
-    rank_coeff = rank_coeff[param_ranks]
+    if len(rank_coeff)>0:
+        rank_coeff = rank_coeff[param_ranks]
+    else:
+        rank_coeff = np.ones(len(param_ranks))
 
     for row, ii, jj, c1, c2 in zip(range(ranking.shape[0]), param_ranks[:-1], param_ranks[1:], rank_coeff[:-1], rank_coeff[1:]):
         ranking[row, ii] = c1
