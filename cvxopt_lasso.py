@@ -17,18 +17,19 @@ def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=
         rank_coeff = rank_coeff[param_ranks]
     else:
         rank_coeff = np.ones(len(param_ranks))
-
+    
+    ind2lasso_inds = {ind:ii for ii, ind in enumerate(lasso_inds)}
     for row, ii, jj, c1, c2 in zip(range(ranking.shape[0]), param_ranks[:-1], param_ranks[1:], rank_coeff[:-1], rank_coeff[1:]):
         ranking[row, ii] = c1
         ranking[row, jj] = -c2
         if ii in lasso_inds:
-            ranking[row, lasso_inds[ii]+n] = c1
+            ranking[row, ind2lasso_inds[ii]+n] = c1
         if jj in lasso_inds:
-            ranking[row, lasso_inds[jj]+n] = -c2
+            ranking[row, ind2lasso_inds[jj]+n] = -c2
 
 
     G = np.vstack((G_upper, G_lower, abs_sum, ranking))
-    h = np.hstack((np.zeros(G_upper.shape[0] + G_lower.shape[0]), constraint, np.zeros(ranking.shape[0])))
+    h = np.hstack((np.zeros(G_upper.shape[0] + G_lower.shape[0]), constraint*2., np.zeros(ranking.shape[0])))
     dA = np.hstack((A,A[:,lasso_inds]))
     P = dA.T.dot(dA)
     q = -2. * dA.T.dot(b)
