@@ -1,10 +1,15 @@
+#Rhys M Adams
+#April 5, 2018
+
 import numpy as np
 from cvxopt import matrix, solvers
 import time
 import pdb
+from scipy import sparse
+
 solvers.options['show_progress'] = False
-def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=[], start = None):
-    #def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=[], start = None)
+def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=[]):
+    #def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=[])
     #performs a lasso fit with constraints allowing you to remove lasso penalty on certain parameters,
     #enforce rank of certain parameters
     #A x = b
@@ -51,25 +56,21 @@ def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=
     #inequality constraints
     G = np.vstack((G_upper, G_lower, abs_sum, ranking))
     h = np.hstack((np.zeros(G_upper.shape[0] + G_lower.shape[0]), constraint*2., np.zeros(ranking.shape[0])))
-    
+
     #linear algebra formulation of basic problem
-    dA = np.hstack((A,A[:,lasso_inds]))
-    P = dA.T.dot(dA)
-    q = -2. * dA.T.dot(b)
+    if sparse.issparse(A):
+        dA = sparse.hstack((A, A[:,lasso_inds]))
+        P = (dA.T.dot(dA)).todense()
+        q = -2. * dA.T.dot(b)
+        
+    else:
+        dA = np.hstack((A, A[:,lasso_inds]))
+        P = dA.T.dot(dA)
+        q = -2. * dA.T.dot(b)
     
     #if you know a good solution use that, otherwise just solve
-    if start is None:
-        ret = solvers.qp(matrix(P), matrix(q), G = matrix(G), h = matrix(h))
-    else:
-        x0 = np.zeros(G.shape[1])
-        x0[:n] = start.flatten()
-        pos_x = np.zeros(G.shape[1]-n)
-        lasso_x = x0[lasso_inds]
-        pos_x = lasso_x * (lasso_x > 0)
-        x0[lasso_inds] *= x0[lasso_inds] < 0
-        x0[n:] = pos_x
-        ret = solvers.qp(matrix(P), matrix(q), G = matrix(G), h = matrix(h), init_vals=x0*2)
-    
+    ret = solvers.qp(matrix(P), matrix(q), G = matrix(G), h = matrix(h))
+
     #add up the negative and positive x and return the solutions
     fit_x = np.array(ret['x'])
     fit_x[lasso_inds] += fit_x[n:]
@@ -130,9 +131,10 @@ if __name__ == '__main__':
 
     print ' '
     
-    m, n = 2000, 1000
+    m, n = 200000, 1000
 
     A = np.random.randn(m,n)
+    A[np.abs(A)<3] = 0
     x = np.random.randn(n)
     x[5:] *= np.abs(x[5:])>1.
     x[0] = -3
@@ -143,17 +145,21 @@ if __name__ == '__main__':
     b = A.dot(x)
     
     #get an upper limit solution
-    xhat = monotonic_fit(A, b, param_ranks = [1,0,2,3,4,5,6])
-    xhat2 = monotonic_lasso(A, b, constraint=np.sum(np.abs(xhat)), param_ranks = [1,0,2,3,4,5,6], no_lasso=range(5))
+    xhat = monotonic_fit(A, b, param_ranks = np.argsort(x[:6]))
+    xhat2 = monotonic_lasso(A, b, constraint=np.sum(np.abs(xhat)), param_ranks = np.argsort(x[:6]), no_lasso=range(5))
     print 'lasso upper limit solution compared to unconstrainted solution,'
     print 'SSE difference in coefficients:%e'%(np.sum((xhat-xhat2)**2))
+
+    #input a sparse matrix
+    t = time.time()
+    xhat = monotonic_lasso(sparse.csc_matrix(A), b, constraint=10, param_ranks = np.argsort(x[:6]), no_lasso=range(5))
+    print 'fit with sparse matrix, time:%f'%(time.time()-t)
+
+
     
     #compare the time it takes with a known solution as a starting point versus 
     #no specificed starting point. The differences are small
     t = time.time()
-    xhat = monotonic_lasso(A, b, constraint=10, param_ranks = [1,0,2,3,4,5,6], no_lasso=range(5))
-    print 'fit without good start, time:%f'%(time.time()-t)
+    xhat = monotonic_lasso(A, b, constraint=10, param_ranks = np.argsort(x[:6]), no_lasso=range(5))
+    print 'fit without sparse matrix (most time is in solver), time:%f'%(time.time()-t)
     
-    t = time.time()
-    xhat = monotonic_lasso(A, b, constraint=10, param_ranks = [1,0,2,3,4,5,6], no_lasso=range(5), start=xhat)
-    print 'fit with good start, time:%f'%(time.time()-t)
