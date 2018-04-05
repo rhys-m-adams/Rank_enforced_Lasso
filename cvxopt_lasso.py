@@ -29,11 +29,9 @@ def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=
 
     G = np.vstack((G_upper, G_lower, abs_sum, ranking))
     h = np.hstack((np.zeros(G_upper.shape[0] + G_lower.shape[0]), constraint, np.zeros(ranking.shape[0])))
-
     dA = np.hstack((A,A[:,lasso_inds]))
     P = dA.T.dot(dA)
-    q = -2.0 * dA.T.dot(b)
-
+    q = -2. * dA.T.dot(b)
     if start is None:
         ret = solvers.qp(matrix(P), matrix(q), G = matrix(G), h = matrix(h))
     else:
@@ -41,7 +39,7 @@ def monotonic_lasso(A, b, constraint=1, no_lasso=[], param_ranks=[], rank_coeff=
 
     fit_x = np.array(ret['x'])
     fit_x[lasso_inds] += fit_x[n:]
-    return fit_x[:n]
+    return fit_x[:n]/2.
 
 def monotonic_fit(A, b, param_ranks=[], rank_coeff=[]):
     m,n = A.shape
@@ -55,10 +53,10 @@ def monotonic_fit(A, b, param_ranks=[], rank_coeff=[]):
     h = np.zeros(ranking.shape[0])
 
     P = A.T.dot(A)
-    q = -2.0 * A.T.dot(b)
+    q = -2. * A.T.dot(b)
     ret = solvers.qp(matrix(P), matrix(q), G = matrix(G), h = matrix(h))
     fit_x = np.array(ret['x'])
-    return fit_x[:n]
+    return fit_x[:n]/2
 
 if __name__ == '__main__':
     m, n = 500, 20
