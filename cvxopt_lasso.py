@@ -57,7 +57,7 @@ def monotonic_fit(A, b, param_ranks=[], rank_coeff=[]):
     q = -2. * A.T.dot(b)
     ret = solvers.qp(matrix(P), matrix(q), G = matrix(G), h = matrix(h))
     fit_x = np.array(ret['x'])
-    return fit_x[:n]/2
+    return fit_x[:n]/2.
 
 if __name__ == '__main__':
     m, n = 500, 20
